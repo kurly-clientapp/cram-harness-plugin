@@ -126,4 +126,6 @@ git rev-parse --is-inside-work-tree
 > - `plans/` — 플랜 관리 디렉토리
 > - `.harness_data/fine_tuning/` — 텔레메트리 데이터
 >
+> **참고:** Claude 네이티브 메모리(`~/.claude/projects/`)는 세션 연속성을, CRAM은 구조화된 에피소딕 러닝을 담당합니다. 두 시스템은 보완 관계입니다.
+>
 > 다음 단계: 작업을 마친 후 `/cram-harness:commit-plan`을 실행하여 에피소딕 메모리를 기록하세요.
