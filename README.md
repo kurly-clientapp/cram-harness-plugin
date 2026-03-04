@@ -47,7 +47,8 @@ cram-harness-plugin/
 ├── commands/
 │   ├── setup.md                 # /cram-harness:setup
 │   ├── map.md                   # /cram-harness:map
-│   └── commit-plan.md           # /cram-harness:commit-plan
+│   ├── commit-plan.md           # /cram-harness:commit-plan
+│   └── refine-plan.md           # /cram-harness:refine-plan
 └── README.md
 ```
 
@@ -227,7 +228,10 @@ options = ClaudeAgentOptions(
    | FAILED | 시행착오 키워드 스캐닝 ("에러", "Rollback" 등) |
    | SEVERITY | 작업 맥락 기반 추론 |
 
-   - **Normal 모드**: 추론 결과를 요약 표시 후 1회 확인
+   - **Normal 모드**: 추론 결과를 요약 표시 후 3가지 선택지 제공:
+     - **기록** — 바로 최종 기록
+     - **초안 저장** — AI 초안을 `.cram-harness/memory/drafts/`에 저장 → 나중에 `/cram-harness:refine-plan`으로 보강
+     - **수정** — 필드 수정 후 다시 선택
    - **Turbo 모드**: `"알아서"`, `"자동으로"`, `"원스톱"` 등 키워드 감지 시 확인 없이 즉시 적재
 
 2. **Phase 1 적재** — 인라인 Python3 코드로 세 곳에 동시 기록:
@@ -240,6 +244,21 @@ options = ClaudeAgentOptions(
 
 3. **Phase 2 (TODO)** — 패턴 분석: 도메인별 실패 패턴 집계 및 반복 실패 경고
 4. **Phase 3 (TODO)** — 파인튜닝 데이터셋 변환: JSONL → OpenAI fine-tuning 포맷
+
+### 2.1. 초안 보강: `/cram-harness:refine-plan`
+
+`commit-plan`에서 **"초안 저장"**을 선택한 뒤, 빌드 에러 수정·테스트 확인 등 디테일 작업을 마친 후 실행합니다.
+
+**워크플로우:**
+1. `.cram-harness/memory/drafts/`에서 저장된 초안 목록 조회
+2. 초안 내용 표시 → FAILED, SEVERITY 등 필드 보강
+3. 보강된 내용을 최종 에피소딕 메모리로 기록 (MEMORY.md + JSONL + YAML)
+4. 초안 파일 자동 정리
+
+**이 워크플로우의 장점:**
+- AI가 초안을 먼저 잡아두므로 작업 흐름이 끊기지 않음
+- 빌드 에러, 테스트 실패 등을 실제로 경험한 뒤 FAILED 필드를 보강하면 더 정확한 시행착오 기록이 남음
+- SEVERITY도 실제 영향도를 확인한 뒤 정할 수 있음
 
 **추가된 필드:**
 - `episode_id` — SHA256 기반 고유 에피소드 ID (12자)
@@ -294,8 +313,12 @@ failed: "Redis TTL 기반 갱신 → 분산 환경에서 동기화 불가"
 ├─ 3. Commit ────────────────────────────────────┤
 │  /cram-harness:commit-plan                      │
 │  → 세션 컨텍스트에서 5개 필드 자동 추론        │
-│  → Turbo 시 확인 스킵 / Normal 시 1회 확인     │
-│  → Phase 1 자동 적재 (MEMORY + JSONL + YAML)     │
+│  → 기록(즉시) / 초안 저장(나중에 보강) / 수정   │
+│  → Turbo 시 확인 스킵 / Normal 시 선택          │
+├─ 3-A. Refine (초안 저장 선택 시) ─────────────┤
+│  빌드 에러 수정, 테스트 확인 등 디테일 작업       │
+│  /cram-harness:refine-plan                      │
+│  → 초안의 FAILED, SEVERITY 보강 후 최종 기록     │
 ├─ 4. Wrap-up ───────────────────────────────────┤
 │  컨텍스트 80% 차면 /compact                      │
 │  다음 세션에서 .cram-harness/memory/MEMORY.md 참조 │
@@ -305,7 +328,15 @@ failed: "Redis TTL 기반 갱신 → 분산 환경에서 동기화 불가"
 > **기본 동작: 자동 추론**
 >
 > `/cram-harness:commit-plan`만 호출하면, 에이전트가 세션 컨텍스트를 분석하여 DOMAIN, WHAT, WHY, FAILED, SEVERITY를 **자동으로 추론**합니다.
-> 추론 결과를 요약 표시하고, 확인 후 기록합니다.
+> 추론 결과를 요약 표시하고, 기록/초안 저장/수정 중 선택합니다.
+>
+> **초안 → 보강 워크플로우 (권장):**
+>
+> > "commit-plan 실행해줘" → **"초안 저장"** 선택
+> > → 빌드 에러 수정, 테스트 확인 후
+> > → `/cram-harness:refine-plan` → FAILED, SEVERITY 보강 → 최종 기록
+>
+> AI가 초안을 먼저 잡고, 사용자가 디테일을 보강하면 **실패 부분이 더 명확하게** 기록됩니다.
 >
 > **Turbo 모드 (확인 스킵):**
 >
