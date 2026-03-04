@@ -169,6 +169,8 @@ with open('.cram-harness/data/rag_db/postmortem.yaml', 'a', encoding='utf-8') as
 if DRAFT_FILE and os.path.exists(DRAFT_FILE):
     os.remove(DRAFT_FILE)
     print(f'   🗑️  초안 파일 삭제: {DRAFT_FILE}')
+elif DRAFT_FILE:
+    print(f'   ⚠️  초안 파일을 찾을 수 없습니다: {DRAFT_FILE}')
 
 print(f'\n✅ 초안 보강 → 최종 에피소딕 메모리 적재 완료! (episode: {EPISODE_ID})')
 print(f'   Phase 1 ✓  MEMORY.md + JSONL + YAML')
